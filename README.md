@@ -5,9 +5,11 @@ Browser console for
 tab per endpoint, every field editable, so the service can be exercised by
 hand without curl.
 
-Plain HTML and JavaScript with no build step, no framework, and no
-dependencies. It is served as static files and talks to the service over
-`fetch`.
+Plain HTML and JavaScript with no build step and no framework. Styling comes
+from [Pico CSS](https://picocss.com) (MIT), vendored into `src/vendor/` rather
+than loaded from a CDN, so the page works offline and pulls nothing at
+runtime. `src/console.css` adds only what a classless framework has no opinion
+about: the endpoint tab strip, the response pane, and the lineage banner.
 
 ## Where this sits
 

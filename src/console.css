@@ -1,0 +1,192 @@
+/* Console-specific styling, layered over vendored Pico.
+ *
+ * Pico supplies the typography scale, form controls, focus rings, and both
+ * color schemes. This file covers the parts a classless framework has no
+ * opinion about: the endpoint tab strip, the response pane, and the lineage
+ * banner.
+ *
+ * Every color here is a Pico custom property, so light and dark both follow
+ * from the framework rather than from a second palette maintained by hand.
+ */
+
+:root {
+  --console-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --console-radius: 0.5rem;
+}
+
+body > main {
+  padding-block: 2rem;
+}
+
+/* --- Header and lineage ------------------------------------------------- */
+
+hgroup .ver {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--pico-muted-color);
+  margin-left: 0.35rem;
+}
+
+.lineage {
+  background: var(--pico-card-sectioning-background-color);
+  border-left: 4px solid var(--pico-primary);
+  border-radius: var(--console-radius);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.lineage .sep {
+  color: var(--pico-muted-color);
+  margin: 0 0.4rem;
+}
+
+.lineage .product {
+  font-weight: 700;
+}
+
+/* --- Endpoint tabs ------------------------------------------------------ */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  /* Pico spaces nav children apart, which strands the last tab against the
+     right edge once the strip wraps. */
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.tabs button {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-family: var(--console-mono);
+  border-radius: 2rem;
+  /* Pico scopes --pico-color to the inverse on button, because its buttons
+     default to a primary fill. Reading that property for an outline button
+     yields white text on a white pill in light mode, so the contrast token is
+     used directly. */
+  --pico-color: var(--pico-contrast);
+  background: transparent;
+  color: var(--pico-contrast);
+  border: 1px solid var(--pico-form-element-border-color);
+}
+
+.tabs button:hover {
+  border-color: var(--pico-primary);
+  background: var(--pico-card-sectioning-background-color);
+  color: var(--pico-contrast);
+}
+
+/* The selected endpoint has to be obvious at a glance, so it takes the
+   primary fill rather than a border change alone. */
+.tabs button[aria-selected="true"] {
+  --pico-color: var(--pico-primary-inverse);
+  background: var(--pico-primary);
+  border-color: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+  font-weight: 600;
+}
+
+/* --- Request form ------------------------------------------------------- */
+
+.field-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.3rem;
+}
+
+.field-label small {
+  font-weight: 400;
+  color: var(--pico-muted-color);
+}
+
+.field-label .optional {
+  font-weight: 400;
+  color: var(--pico-muted-color);
+}
+
+input,
+select,
+textarea {
+  font-family: var(--console-mono);
+  font-size: 0.95rem;
+}
+
+textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.checkbox-row input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+}
+
+.note {
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.actions button {
+  width: auto;
+  margin: 0;
+}
+
+/* --- Response ----------------------------------------------------------- */
+
+#status {
+  font-family: var(--console-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+}
+
+#out {
+  font-family: var(--console-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--pico-code-background-color);
+  border: 1px solid var(--pico-form-element-border-color);
+  border-radius: var(--console-radius);
+  padding: 1.1rem;
+  min-height: 12rem;
+  max-height: 34rem;
+  overflow: auto;
+}
+
+/* Status colors are drawn from Pico's semantic set so they stay legible
+   against both backgrounds. */
+.ok { color: var(--pico-ins-color); }
+.warn { color: #b45309; }
+.err { color: var(--pico-del-color); }
+.muted { color: var(--pico-muted-color); }
+
+@media (prefers-color-scheme: dark) {
+  .warn { color: #fbbf24; }
+}
