@@ -36,6 +36,8 @@
     .hint { font-size: 0.78rem; opacity: 0.75; margin: 0.35rem 0 0; }
     .ver { font-size: 0.75rem; font-weight: 400; opacity: 0.6; }
     a { color: inherit; }
+    .lineage { border-left: 3px solid var(--line); padding-left: 0.6rem; }
+    .lineage span { opacity: 0.5; margin: 0 0.15rem; }
     code { font-family: ui-monospace, monospace; }
   </style>
 </head>
@@ -44,7 +46,20 @@
   <p class="sub">
     Calls <code id="base"></code> — every field below is yours to edit.
     Start the service with <code>make serve</code> in the
-    <a href="https://github.com/davecthomas/ai-api-unified-http">service repo</a>.
+    <a href="https://github.com/davecthomas/ai-api-unified-http"
+       target="_blank" rel="noopener">service repo</a>.
+  </p>
+  <p class="sub lineage">
+    <a href="https://github.com/davecthomas/ai-api-unified-http-webapp"
+       target="_blank" rel="noopener">this console</a>
+    <span aria-hidden="true">→</span>
+    <a href="https://github.com/davecthomas/ai-api-unified-http"
+       target="_blank" rel="noopener">ai-api-unified-http</a>
+    <span aria-hidden="true">→</span>
+    <a href="https://github.com/davecthomas/ai-api-unified"
+       target="_blank" rel="noopener"><b>ai-api-unified</b></a>
+    — one Python interface across AI providers, with pricing, model lifecycle,
+    cost attribution, and PII middleware. Everything above exists to exercise it.
   </p>
 
   <fieldset>
