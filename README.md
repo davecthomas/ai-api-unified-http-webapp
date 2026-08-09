@@ -82,6 +82,20 @@ Bump **minor** when a tab or field is added, **patch** for fixes and copy
 changes, and **major** if the page stops working against a service version it
 previously supported.
 
+## Contributing
+
+`main` takes changes through pull requests. Run this once per clone:
+
+```bash
+make hooks          # git config core.hooksPath .githooks
+```
+
+That installs a `pre-push` hook refusing a direct push to `main`. It guards
+this clone only, and `git push --no-verify` bypasses it. The sibling public
+repos have the same rule enforced server-side by a GitHub ruleset; a private
+repo below the Pro plan cannot have one, so making this repo public or
+upgrading the plan is what replaces the hook with real enforcement.
+
 ## Development
 
 No install step, no toolchain. Edit `src/index.html` or `src/app.js` and
