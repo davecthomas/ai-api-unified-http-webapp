@@ -9,9 +9,8 @@ Plain HTML and JavaScript with no build step, no framework, and no
 dependencies. It is served as static files and talks to the service over
 `fetch`.
 
-This lives outside the service repo on purpose. The service is a lean HTTP
-wrapper around the `ai-api-unified` library; a sample consumer does not belong
-in it, and the two version independently.
+The service repo is a lean HTTP wrapper around the `ai-api-unified` library.
+A sample consumer does not belong in it, and the two version independently.
 
 ## Run
 
@@ -45,8 +44,6 @@ editable in the page.
 | `POST /v1/embeddings` | One input per line |
 | `POST /v1/tokens/count` | Provider-side token count |
 | `GET /v1/models` | Model catalog with lifecycle and pricing |
-
-Three behaviors are worth knowing:
 
 **Streaming renders as it arrives**, chunk by chunk with a running count.
 Buffering the whole SSE body first would show a finished answer and prove
