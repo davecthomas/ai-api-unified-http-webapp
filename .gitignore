@@ -1,0 +1,27 @@
+# This project has no build step and no dependencies, so most of what a
+# .gitignore usually covers does not exist here. What remains is editor and OS
+# noise, plus anything carrying a real API key.
+
+# Local configuration. The page takes its base URL and key from the query
+# string, so nothing here is required — but a scratch file holding a real key
+# must never be committed.
+.env
+.env.*
+*.local
+
+# Editor and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Python's static server leaves nothing behind, but __pycache__ appears if
+# anything is ever scripted here.
+__pycache__/
+*.py[cod]
+
+# Screenshots and scratch output from manual testing
+*.png
+*.jpg
+*.gif
+scratch/

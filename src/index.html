@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ai-api-unified-http console</title>
+  <style>
+    :root { color-scheme: light dark; --line: #8884; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 68rem; margin: 1.5rem auto; padding: 0 1rem; line-height: 1.5;
+    }
+    h1 { font-size: 1.15rem; margin-bottom: 0.25rem; }
+    .sub { font-size: 0.85rem; opacity: 0.75; margin-top: 0; }
+    fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 1rem; padding: 0.75rem 1rem 1rem; }
+    legend { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8; padding: 0 0.35rem; }
+    label { display: block; font-size: 0.8rem; margin-top: 0.6rem; }
+    input, select, textarea {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem;
+      width: 100%; padding: 0.35rem 0.45rem; margin-top: 0.15rem;
+      border: 1px solid var(--line); border-radius: 4px; background: transparent; color: inherit;
+    }
+    textarea { resize: vertical; min-height: 4rem; }
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .row > * { flex: 1 1 12rem; }
+    .inline { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; font-size: 0.8rem; }
+    .inline input[type=checkbox] { width: auto; margin: 0; }
+    nav { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 1rem; }
+    nav button { font-size: 0.8rem; padding: 0.35rem 0.7rem; cursor: pointer; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: inherit; }
+    nav button[aria-selected="true"] { background: #8883; font-weight: 600; }
+    .send { margin-top: 0.9rem; padding: 0.5rem 1.1rem; font-size: 0.9rem; cursor: pointer; border-radius: 4px; border: 1px solid var(--line); background: #8882; color: inherit; }
+    .send:disabled { opacity: 0.5; cursor: progress; }
+    #status { font-family: ui-monospace, monospace; font-size: 0.85rem; margin: 0 0 0.4rem; }
+    #out { border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem; min-height: 10rem; max-height: 34rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+    .ok { color: #2a7; } .warn { color: #d80; } .err { color: #d33; } .muted { opacity: 0.7; }
+    .hint { font-size: 0.78rem; opacity: 0.75; margin: 0.35rem 0 0; }
+    .ver { font-size: 0.75rem; font-weight: 400; opacity: 0.6; }
+    a { color: inherit; }
+    code { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h1>ai-api-unified-http console <span id="version" class="ver"></span></h1>
+  <p class="sub">
+    Calls <code id="base"></code> — every field below is yours to edit.
+    Start the service with <code>make serve</code> in the
+    <a href="https://github.com/davecthomas/ai-api-unified-http">service repo</a>.
+  </p>
+
+  <fieldset>
+    <legend>Connection</legend>
+    <div class="row">
+      <label>API base URL
+        <input id="baseUrl" spellcheck="false" autocomplete="off">
+      </label>
+      <label>API key (sent as <code>Authorization: Bearer</code>)
+        <input id="apikey" spellcheck="false" autocomplete="off">
+      </label>
+    </div>
+    <p class="hint">
+      Clear the key to see the real <b>401</b>. The service's
+      <code>make serve</code> uses <code>local-dev-key</code> unless
+      <code>DEV_API_KEY</code> is set.
+    </p>
+  </fieldset>
+
+  <nav id="tabs" role="tablist"></nav>
+  <form id="form" autocomplete="off"></form>
+
+  <p id="status" class="muted">Pick an endpoint, edit the inputs, and send.</p>
+  <div id="out">No request sent yet.</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
