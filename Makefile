@@ -12,14 +12,21 @@ KEY ?= local-dev-key
 # is a convenience rather than configuration baked into the page.
 URL = http://localhost:$(PORT)/?base=$(API)&key=$(KEY)
 
-.PHONY: help serve open check
+.PHONY: help serve open check hooks
 
 help:
 	@echo "serve   static server on http://localhost:$(PORT)"
 	@echo "open    same as serve, and opens a browser"
 	@echo "check   confirm the service is reachable and CORS admits this origin"
+	@echo "hooks   install the git hook that refuses a direct push to main"
 	@echo ""
 	@echo "vars    PORT=$(PORT)  API=$(API)  KEY=$(KEY)"
+
+# Git does not carry hooks through a clone, so this points git at the tracked
+# .githooks directory. Run it once per clone.
+hooks:
+	@git config core.hooksPath .githooks
+	@echo "core.hooksPath -> .githooks (direct pushes to main will be refused)"
 
 serve:
 	@echo ""
