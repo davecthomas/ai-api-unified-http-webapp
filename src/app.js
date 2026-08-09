@@ -222,10 +222,32 @@ function renderForm(options = {}) {
 
   for (const field of active.fields) {
     if (Object.hasOwn(carried, field.name)) field.value = carried[field.name];
+
+    if (field.type === "checkbox") {
+      const row = document.createElement("label");
+      row.className = "checkbox-row";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = Boolean(field.value);
+      box.id = fieldId(field.name);
+      row.append(box, document.createTextNode(field.name));
+      els.form.appendChild(row);
+      continue;
+    }
+
     const label = document.createElement("label");
-    const optional = field.optional ? " (optional)" : "";
-    const hint = field.hint ? ` — ${field.hint}` : "";
-    label.textContent = `${field.name}${optional}${hint}`;
+    const title = document.createElement("span");
+    title.className = "field-label";
+    title.textContent = field.name;
+    if (field.optional || field.hint) {
+      const extra = document.createElement("span");
+      extra.className = "optional";
+      extra.textContent =
+        (field.optional ? " (optional)" : "") +
+        (field.hint ? ` — ${field.hint}` : "");
+      title.appendChild(extra);
+    }
+    label.appendChild(title);
 
     let input;
     if (field.type === "select") {
@@ -240,14 +262,7 @@ function renderForm(options = {}) {
     } else if (["textarea", "json", "lines"].includes(field.type)) {
       input = document.createElement("textarea");
       input.value = field.value;
-      if (field.type === "json") input.rows = 9;
-    } else if (field.type === "checkbox") {
-      input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = Boolean(field.value);
-      label.className = "inline";
-      label.textContent = "";
-      label.append(input, document.createTextNode(field.name));
+      input.rows = field.type === "json" ? 10 : 4;
     } else {
       input = document.createElement("input");
       input.type = field.type === "number" ? "number" : "text";
@@ -255,49 +270,42 @@ function renderForm(options = {}) {
       input.spellcheck = false;
     }
     input.id = fieldId(field.name);
-    if (field.type !== "checkbox") label.appendChild(input);
+    label.appendChild(input);
     els.form.appendChild(label);
   }
 
   if (active.note) {
     const note = document.createElement("p");
-    note.className = "hint";
+    note.className = "note";
     note.textContent = active.note;
     els.form.appendChild(note);
   }
 
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
   const send = document.createElement("button");
   send.type = "button";
-  send.className = "send";
   send.textContent = `Send ${active.method} ${
     active.path({ engine: "x" }).split("?")[0]
   }`;
   send.onclick = () => run(send);
-  els.form.appendChild(send);
+  actions.appendChild(send);
 
   if (active.conversation) {
     const reset = document.createElement("button");
     reset.type = "button";
-    reset.className = "send";
-    reset.style.marginLeft = "0.5rem";
+    reset.className = "secondary";
     reset.textContent = `Reset history (${history.length} messages)`;
     reset.onclick = () => {
       history = [];
       renderForm({ fresh: true });
       write("muted", "Conversation history cleared.", "");
     };
-    els.form.appendChild(reset);
+    actions.appendChild(reset);
   }
-}
 
-function currentValues() {
-  const values = {};
-  for (const field of active.fields) {
-    const input = document.getElementById(fieldId(field.name));
-    if (!input) continue;
-    values[field.name] = field.type === "checkbox" ? input.checked : input.value;
-  }
-  return values;
+  els.form.appendChild(actions);
 }
 
 
