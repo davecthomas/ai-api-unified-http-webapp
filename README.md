@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 0.1.0
+# ai-api-unified-http-webapp 1.0.0
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -9,8 +9,41 @@ Plain HTML and JavaScript with no build step, no framework, and no
 dependencies. It is served as static files and talks to the service over
 `fetch`.
 
-The service repo is a lean HTTP wrapper around the `ai-api-unified` library.
-A sample consumer does not belong in it, and the two version independently.
+## Where this sits
+
+```
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ai-api-unified-http-webapp   ← you are here                    │
+  │  Browser console. Static HTML + JS, no build step.              │
+  └───────────────────────────────┬─────────────────────────────────┘
+                                  │  fetch + SSE, bearer token
+                                  ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ai-api-unified-http                                            │
+  │  FastAPI service. Auth, client pooling, SSE bridging,           │
+  │  error mapping, cost capture. A thin adapter and nothing more.  │
+  └───────────────────────────────┬─────────────────────────────────┘
+                                  │  in-process import
+                                  ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ai-api-unified            ★ the library this exists to show    │
+  │  One Python interface across OpenAI, Anthropic, Google and      │
+  │  more, plus the pricing registry, model lifecycle enforcement,  │
+  │  cost attribution, and PII/observability middleware.            │
+  └───────────────────────────────┬─────────────────────────────────┘
+                                  │  provider SDKs
+                                  ▼
+                   OpenAI · Anthropic · Google · Bedrock · Voyage
+```
+
+| Layer | Repo | Role |
+|---|---|---|
+| Console | [ai-api-unified-http-webapp](https://github.com/davecthomas/ai-api-unified-http-webapp) | This repo. Exercises every endpoint by hand. |
+| Service | [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http) | Exposes the library over HTTP for non-Python callers. |
+| **Library** | **[ai-api-unified](https://github.com/davecthomas/ai-api-unified)** | **The product.** Everything above exists to show it working. |
+
+The layers are separate repos so each versions on its own, and so the service
+stays a lean wrapper rather than absorbing a sample consumer.
 
 ## Run
 
@@ -74,9 +107,13 @@ set to include wherever this page is served from.
 ## Versioning
 
 Semantic versioning, independent of the service. The version lives in two
-places, kept in sync: the title of this file and `src/app.js`. The service's
-version and this one move separately — that independence is the reason the
-repos are separate.
+places, kept in sync: the title of this file and `VERSION` in `src/app.js`,
+which renders beside the page heading. The service's version and this one move
+separately.
+
+`1.0.0` marks the console covering the service's full v1 surface: every
+endpoint has a tab, streaming renders incrementally, and conversations carry
+context across turns.
 
 Bump **minor** when a tab or field is added, **patch** for fixes and copy
 changes, and **major** if the page stops working against a service version it
