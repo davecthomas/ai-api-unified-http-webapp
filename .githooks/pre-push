@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Refuse a direct push to the default branch.
+#
+# GitHub rulesets enforce this server-side on public repos, but a private repo
+# on a Free plan cannot have them, so this stands in until the repo is public
+# or the plan is upgraded. It is a local guard: it protects this clone only,
+# which is why the server-side rule is still the goal.
+#
+# Install: make hooks   (or: git config core.hooksPath .githooks)
+# Bypass once, deliberately: git push --no-verify
+set -euo pipefail
+
+protected="main"
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    if [ "$remote_ref" = "refs/heads/$protected" ]; then
+        echo "pre-push: refusing a direct push to '$protected'." >&2
+        echo "Open a pull request instead:" >&2
+        echo "  git switch -c <branch> && git push -u origin <branch> && gh pr create" >&2
+        exit 1
+    fi
+done
+exit 0
