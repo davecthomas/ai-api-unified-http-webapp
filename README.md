@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 1.1.0
+# ai-api-unified-http-webapp 1.1.1
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -49,29 +49,24 @@ stays a lean wrapper rather than absorbing a sample consumer.
 
 ## Run
 
-The service must be running first. In its checkout:
+Every command on this page runs in **this** repo.
+
+The console needs a service to call, not the service's source. Any reachable
+`ai-api-unified-http` will do, so the quickest start is to point it at one that
+is already deployed.
+
+Whatever you point it at has to admit this page's origin through CORS. The
+service's default already admits `http://localhost:3000`, which is where this
+serves. `make check` confirms it before you start blaming the page.
+
+### At a service you already have a URL for
 
 ```bash
-make serve          # http://localhost:8080, API key: local-dev-key
+make open API=https://your-service.example KEY=your-key
+make check API=https://your-service.example
 ```
 
-Then here:
-
-```bash
-make serve                      # http://localhost:3000
-make serve API=http://localhost:9000 KEY=my-key
-```
-
-`make serve` prints a URL carrying `?base=` and `?key=`, so the page opens
-already pointed at the right service with the key filled in. Both stay
-editable in the page.
-
-`make open` does the same and opens a browser.
-
-### Against a deployed service
-
-The page runs locally and calls whatever service you point it at, so the same
-console drives a Cloud Run deployment:
+### At your own Cloud Run deployment
 
 ```bash
 make remote PROJECT=your-gcp-project-id
@@ -86,13 +81,23 @@ credits, and a URL lands in shell history and then browser history, so the
 command to read it is printed instead and the page's key field shows a
 placeholder. Paste it into the field, which is one place you can clear.
 
-The deployment has to admit this origin. `make gcp-deploy` sets
-`HTTP_CORS_ORIGINS` to `http://localhost:3000` by default, which is where this
-serves; `make check` confirms it.
+Needs `gcloud` installed and authenticated against a project you can read.
+
+### At a service running on your machine
+
+This is the only mode that needs a second checkout:
+[ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http).
+Start it by following that repo's README — wherever you cloned it — then come
+back here:
 
 ```bash
-make check API=https://your-service.run.app
+make serve                      # http://localhost:3000, expects the service on :8080
+make serve API=http://localhost:9000 KEY=my-key
 ```
+
+`make serve` prints a URL carrying `?base=` and `?key=`, so the page opens
+already pointed at the right service with the key filled in. Both stay
+editable in the page. `make open` does the same and opens a browser.
 
 ## What it exercises
 
@@ -124,13 +129,10 @@ one, so both the public and gated paths are visible.
 ## Configuration
 
 Nothing is configured at build time. The API base URL and key come from the
-query string (`?base=`, `?key=`) and are editable in the page. Defaults are
-`http://localhost:8080` and `local-dev-key`, matching the service's `make
-serve`.
-
-The service must allow this origin through CORS. Its default already admits
-`http://localhost:3000`; a service on another host needs `HTTP_CORS_ORIGINS`
-set to include wherever this page is served from.
+query string (`?base=`, `?key=`) and are editable in the page, so the page can
+be served from anywhere and pointed anywhere without a rebuild. Defaults are
+`http://localhost:8080` and `local-dev-key`, which match a service started
+with its own `make serve`.
 
 ## Versioning
 
@@ -155,11 +157,10 @@ previously supported.
 make hooks          # git config core.hooksPath .githooks
 ```
 
-That installs a `pre-push` hook refusing a direct push to `main`. It guards
-this clone only, and `git push --no-verify` bypasses it. The sibling public
-repos have the same rule enforced server-side by a GitHub ruleset; a private
-repo below the Pro plan cannot have one, so making this repo public or
-upgrading the plan is what replaces the hook with real enforcement.
+That installs a `pre-push` hook refusing a direct push to `main`. A GitHub
+ruleset enforces the same rule server-side, so the hook is a faster failure
+rather than the thing standing in the way: it guards this clone only, and
+`git push --no-verify` bypasses it.
 
 ## Development
 
