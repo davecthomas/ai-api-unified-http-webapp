@@ -12,12 +12,13 @@ KEY ?= local-dev-key
 # is a convenience rather than configuration baked into the page.
 URL = http://localhost:$(PORT)/?base=$(API)&key=$(KEY)
 
-.PHONY: help serve open check hooks
+.PHONY: help serve open check hooks remote
 
 help:
 	@echo "serve   static server on http://localhost:$(PORT)"
 	@echo "open    same as serve, and opens a browser"
 	@echo "check   confirm the service is reachable and CORS admits this origin"
+	@echo "remote  point the console at a Cloud Run deployment (PROJECT=<gcp-project-id>)"
 	@echo "hooks   install the git hook that refuses a direct push to main"
 	@echo ""
 	@echo "vars    PORT=$(PORT)  API=$(API)  KEY=$(KEY)"
@@ -27,6 +28,29 @@ help:
 hooks:
 	@git config core.hooksPath .githooks
 	@echo "core.hooksPath -> .githooks (direct pushes to main will be refused)"
+
+# Point the console at a Cloud Run deployment instead of a local service.
+#
+# The base URL is resolved from the deployment rather than pasted, because a
+# Cloud Run URL carries a generated hash that nobody remembers and that changes
+# if the service is recreated.
+#
+# The key is deliberately NOT fetched into the URL. A deployed key spends real
+# provider credits, and $(URL) puts what it is given into the shell history and
+# then the browser's. The command to read it is printed instead; paste it into
+# the page's own field, which keeps it in one place you can clear.
+REGION ?= us-central1
+SERVICE ?= ai-api-unified-http
+
+remote:
+	@test -n "$(PROJECT)" || (echo "set PROJECT=<gcp-project-id>" && exit 1)
+	@api=$$(gcloud run services describe $(SERVICE) --project=$(PROJECT) --region=$(REGION) --format='value(status.url)' 2>/dev/null); \
+	test -n "$$api" || (echo "no service '$(SERVICE)' in $(PROJECT)/$(REGION)" && exit 1); \
+	echo ""; \
+	echo "  read the key:  gcloud secrets versions access latest --secret=HTTP_API_KEYS --project=$(PROJECT)"; \
+	echo "                 (the value is label:key — paste the part after the colon)"; \
+	echo ""; \
+	$(MAKE) --no-print-directory open API="$$api" KEY=paste-the-key-above
 
 serve:
 	@echo ""
@@ -44,9 +68,9 @@ open:
 # The two failures worth catching before blaming the page: the service is not
 # running, or it will not admit this origin.
 check:
-	@curl -sf $(API)/healthz > /dev/null \
-		|| (echo "service not reachable at $(API) — run 'make serve' in the service repo" && exit 1)
-	@echo "service:  $$(curl -s $(API)/healthz)"
+	@curl -sf $(API)/health > /dev/null \
+		|| (echo "service not reachable at $(API) — run 'make serve' in the service repo, or check the URL" && exit 1)
+	@echo "service:  $$(curl -s $(API)/health)"
 	@printf "cors:     "
 	@curl -s -o /dev/null -D - -X OPTIONS $(API)/v1/completions \
 		-H "Origin: http://localhost:$(PORT)" \

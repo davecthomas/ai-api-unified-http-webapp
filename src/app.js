@@ -21,7 +21,7 @@
 //     contract the service expects.
 
 // Keep in sync with the README title.
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 const PARAMS = new URLSearchParams(location.search);
 

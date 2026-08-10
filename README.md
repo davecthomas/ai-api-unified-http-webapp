@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 1.0.0
+# ai-api-unified-http-webapp 1.1.0
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -67,6 +67,32 @@ already pointed at the right service with the key filled in. Both stay
 editable in the page.
 
 `make open` does the same and opens a browser.
+
+### Against a deployed service
+
+The page runs locally and calls whatever service you point it at, so the same
+console drives a Cloud Run deployment:
+
+```bash
+make remote PROJECT=your-gcp-project-id
+```
+
+The base URL is read from the deployment rather than pasted, because a Cloud
+Run URL carries a generated hash that nobody remembers and that changes if the
+service is recreated.
+
+The key is not fetched into the URL. A deployed key spends real provider
+credits, and a URL lands in shell history and then browser history, so the
+command to read it is printed instead and the page's key field shows a
+placeholder. Paste it into the field, which is one place you can clear.
+
+The deployment has to admit this origin. `make gcp-deploy` sets
+`HTTP_CORS_ORIGINS` to `http://localhost:3000` by default, which is where this
+serves; `make check` confirms it.
+
+```bash
+make check API=https://your-service.run.app
+```
 
 ## What it exercises
 
