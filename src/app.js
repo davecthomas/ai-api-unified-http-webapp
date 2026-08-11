@@ -21,7 +21,7 @@
 //     contract the service expects.
 
 // Keep in sync with the README title.
-const VERSION = "1.1.1";
+const VERSION = "1.2.0";
 
 const PARAMS = new URLSearchParams(location.search);
 
@@ -169,6 +169,103 @@ const ENDPOINTS = [
         value: "How many tokens is this sentence?",
       },
     ],
+  },
+  {
+    id: "batch-submit",
+    label: "POST /v1/batches",
+    method: "POST",
+    path: () => "/v1/batches",
+    fields: [
+      { name: "engine", type: "select", options: ENGINES, value: "claude" },
+      { name: "model", type: "text", value: "claude-haiku-4-5", optional: true },
+      {
+        name: "requests",
+        type: "json",
+        value: JSON.stringify(
+          [
+            { custom_id: "row-1", prompt: "Classify as positive or negative: great." },
+            { custom_id: "row-2", prompt: "Classify as positive or negative: awful." },
+          ],
+          null,
+          2,
+        ),
+        hint: "each item needs a custom_id unique within the batch",
+      },
+    ],
+    note:
+      "Batch runs at about half the interactive rate and returns in hours, " +
+      "not seconds. Copy the batch_id from the response into the other batch " +
+      "tabs; it has to travel with the same engine, because a batch lives in " +
+      "one provider's account.",
+  },
+  {
+    id: "batch-status",
+    label: "GET /v1/batches/{id}",
+    method: "GET",
+    path: (values) =>
+      `/v1/batches/${encodeURIComponent(values.batch_id)}` +
+      `?engine=${encodeURIComponent(values.engine)}` +
+      (values.model ? `&model=${encodeURIComponent(values.model)}` : ""),
+    fields: [
+      { name: "batch_id", type: "text", value: "", pathOnly: true },
+      {
+        name: "engine",
+        type: "select",
+        options: ENGINES,
+        value: "claude",
+        pathOnly: true,
+      },
+      { name: "model", type: "text", value: "", optional: true, pathOnly: true },
+    ],
+    note: "Results are available once status is 'ended'.",
+  },
+  {
+    id: "batch-results",
+    label: "GET /v1/batches/{id}/results",
+    method: "GET",
+    path: (values) =>
+      `/v1/batches/${encodeURIComponent(values.batch_id)}/results` +
+      `?engine=${encodeURIComponent(values.engine)}` +
+      (values.model ? `&model=${encodeURIComponent(values.model)}` : ""),
+    fields: [
+      { name: "batch_id", type: "text", value: "", pathOnly: true },
+      {
+        name: "engine",
+        type: "select",
+        options: ENGINES,
+        value: "claude",
+        pathOnly: true,
+      },
+      { name: "model", type: "text", value: "", optional: true, pathOnly: true },
+    ],
+    note:
+      "Correlate by custom_id: providers return results in their own order. " +
+      "An item can fail while the batch ends normally, so read each item's " +
+      "status before its text.",
+  },
+  {
+    id: "batch-cancel",
+    label: "POST /v1/batches/{id}/cancel",
+    method: "POST",
+    path: (values) =>
+      `/v1/batches/${encodeURIComponent(values.batch_id)}/cancel` +
+      `?engine=${encodeURIComponent(values.engine)}` +
+      (values.model ? `&model=${encodeURIComponent(values.model)}` : ""),
+    fields: [
+      { name: "batch_id", type: "text", value: "", pathOnly: true },
+      {
+        name: "engine",
+        type: "select",
+        options: ENGINES,
+        value: "claude",
+        pathOnly: true,
+      },
+      { name: "model", type: "text", value: "", optional: true, pathOnly: true },
+    ],
+    note:
+      "Cancellation is a request, not a guarantee. Items already processed " +
+      "stay processed and stay billed, which is why the response carries the " +
+      "counts.",
   },
   {
     id: "models",
@@ -348,10 +445,20 @@ function buildBody(values) {
     };
   }
 
+  const jsonFields = new Set(
+    active.fields.filter((f) => f.type === "json").map((f) => f.name),
+  );
+  // Some fields only address the resource — a batch id, the engine holding it —
+  // and belong in the path or query string rather than in the body.
+  const pathOnly = new Set(
+    active.fields.filter((f) => f.pathOnly).map((f) => f.name),
+  );
+
   const body = {};
   for (const [key, value] of Object.entries(values)) {
     if (value === null || value === undefined) continue;
-    body[key] = key === "response_schema" ? JSON.parse(value) : value;
+    if (pathOnly.has(key)) continue;
+    body[key] = jsonFields.has(key) ? JSON.parse(value) : value;
   }
   return body;
 }

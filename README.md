@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 1.1.1
+# ai-api-unified-http-webapp 1.2.0
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -109,6 +109,10 @@ editable in the page. `make open` does the same and opens a browser.
 | `POST /v1/conversations/turn` | Multi-turn, with history kept in the page |
 | `POST /v1/embeddings` | One input per line |
 | `POST /v1/tokens/count` | Provider-side token count |
+| `POST /v1/batches` | Submit many prompts as one job, at batch pricing |
+| `GET /v1/batches/{id}` | Batch status and counts |
+| `GET /v1/batches/{id}/results` | Per-request results, once ended |
+| `POST /v1/batches/{id}/cancel` | Request cancellation |
 | `GET /v1/models` | Model catalog with lifecycle and pricing |
 
 **Streaming renders as it arrives**, chunk by chunk with a running count.
@@ -122,6 +126,11 @@ stateless. Each `conversation_token` is stored as the content of an assistant
 message in the position that turn happened, which is the contract the service
 expects. Send once, then ask "What is my favorite color?" to watch context
 carry across turns. The token is opaque and this page never looks inside it.
+
+**Batches take four tabs, because they are four calls.** Submit returns a
+`batch_id`; paste it into the status, results, and cancel tabs. The engine
+travels with it every time, since a batch lives in one provider's account and
+the id alone does not say which.
 
 **Clearing the key shows the real 401.** `GET /healthz` is always sent without
 one, so both the public and gated paths are visible.
