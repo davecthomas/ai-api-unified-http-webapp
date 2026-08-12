@@ -67,6 +67,29 @@
     <section>
       <h2>Response</h2>
       <p id="status" class="muted">Pick an endpoint, edit the inputs, and send.</p>
+
+      <!-- Only shown for generated media. Generation and transfer are separate
+           phases with separate bars, because they are measured differently:
+           one is published by the service, the other is counted by this page
+           from Content-Length. -->
+      <div id="phases" hidden>
+        <div class="phase" id="phase-generate" hidden>
+          <p class="phase-label">
+            <span>Generating</span>
+            <small id="generate-detail"></small>
+          </p>
+          <progress id="generate-bar" max="100" value="0"></progress>
+        </div>
+        <div class="phase" id="phase-transfer" hidden>
+          <p class="phase-label">
+            <span>Downloading</span>
+            <small id="transfer-detail"></small>
+          </p>
+          <progress id="transfer-bar" max="100" value="0"></progress>
+        </div>
+      </div>
+
+      <div id="preview" hidden></div>
       <div id="out">No request sent yet.</div>
     </section>
   </main>
