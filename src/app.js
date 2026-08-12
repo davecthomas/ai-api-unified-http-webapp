@@ -21,7 +21,7 @@
 //     contract the service expects.
 
 // Keep in sync with the README title.
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 
 const PARAMS = new URLSearchParams(location.search);
 
@@ -36,6 +36,17 @@ const els = {
 };
 
 document.title = `ai-api-unified-http console ${VERSION}`;
+const media = {
+  phases: document.getElementById("phases"),
+  generate: document.getElementById("phase-generate"),
+  generateBar: document.getElementById("generate-bar"),
+  generateDetail: document.getElementById("generate-detail"),
+  transfer: document.getElementById("phase-transfer"),
+  transferBar: document.getElementById("transfer-bar"),
+  transferDetail: document.getElementById("transfer-detail"),
+  preview: document.getElementById("preview"),
+};
+
 const versionEl = document.getElementById("version");
 if (versionEl) versionEl.textContent = VERSION;
 
@@ -266,6 +277,58 @@ const ENDPOINTS = [
       "Cancellation is a request, not a guarantee. Items already processed " +
       "stay processed and stay billed, which is why the response carries the " +
       "counts.",
+  },
+  {
+    id: "images",
+    label: "POST /v1/images",
+    method: "POST",
+    path: () => "/v1/images",
+    media: "image",
+    fields: [
+      { name: "prompt", type: "textarea", value: "A red bicycle against a white wall." },
+      { name: "model", type: "text", value: "", optional: true },
+      { name: "num_images", type: "number", value: "1" },
+      { name: "image_format", type: "select", options: ["png", "jpeg", "webp"], value: "png" },
+      { name: "width", type: "number", value: "", optional: true },
+      { name: "height", type: "number", value: "", optional: true },
+    ],
+    note:
+      "The response carries references, not bytes. Each one is then fetched " +
+      "with its own progress bar, which this page draws from Content-Length " +
+      "and nothing else.",
+  },
+  {
+    id: "videos",
+    label: "POST /v1/videos",
+    method: "POST",
+    path: () => "/v1/videos",
+    media: "video",
+    fields: [
+      { name: "prompt", type: "textarea", value: "A sunset over calm water." },
+      { name: "engine", type: "text", value: "", optional: true },
+      { name: "model", type: "text", value: "", optional: true },
+      { name: "duration_seconds", type: "number", value: "5", optional: true },
+    ],
+    note:
+      "Video takes minutes, so it is a job. This page follows the progress " +
+      "stream while it generates, then downloads with a second bar. Watch the " +
+      "first bar say 'estimated' when the provider reports no figure of its own.",
+  },
+  {
+    id: "artifact",
+    label: "GET /v1/artifacts/{id}",
+    method: "GET",
+    path: (values) => `/v1/artifacts/${encodeURIComponent(values.artifact_id)}/content`,
+    media: "fetch",
+    fields: [
+      { name: "artifact_id", type: "text", value: "", pathOnly: true },
+      { name: "simulate_a_dropped_transfer", type: "checkbox", value: false },
+    ],
+    note:
+      "Paste an artifact_id from an images or videos response. Tick the box " +
+      "to abort halfway and resume with a Range request: the two halves are " +
+      "rejoined and compared, because generation is already paid for and a " +
+      "failed transfer must not repeat it.",
   },
   {
     id: "models",
@@ -522,6 +585,7 @@ async function run(button) {
 
   button.disabled = true;
   const started = performance.now();
+  resetMedia();
   write("muted", `${active.method} ${path} …`, "");
 
   try {
@@ -536,6 +600,11 @@ async function run(button) {
     );
     if (streaming && response.ok) {
       await renderStream(response, started);
+      return;
+    }
+
+    if (active.media && response.ok) {
+      await renderMedia(active.media, response, { base, key, values, started });
       return;
     }
 
@@ -627,3 +696,263 @@ function rememberTurn(values, turn) {
 
 renderTabs();
 renderForm({ fresh: true });
+
+
+// ---------------------------------------------------------------------------
+// Generated media
+//
+// Progress means two different things here and they are measured two different
+// ways, which is why there are two bars.
+//
+// While a video generates there are no bytes, so nothing can be measured; the
+// service publishes a figure and says whether it measured it. While an
+// artifact downloads there is nothing to publish, because Content-Length plus
+// the bytes read is the whole answer.
+// ---------------------------------------------------------------------------
+
+function resetMedia() {
+  media.phases.hidden = true;
+  media.generate.hidden = true;
+  media.transfer.hidden = true;
+  media.generate.classList.remove("estimated");
+  media.generateBar.value = 0;
+  media.transferBar.value = 0;
+  media.generateDetail.textContent = "";
+  media.transferDetail.textContent = "";
+  media.preview.hidden = true;
+  media.preview.replaceChildren();
+}
+
+function showPhase(phase) {
+  media.phases.hidden = false;
+  phase.hidden = false;
+}
+
+function kb(bytes) {
+  return bytes >= 1048576
+    ? `${(bytes / 1048576).toFixed(1)} MB`
+    : `${Math.round(bytes / 1024)} kB`;
+}
+
+async function renderMedia(kind, response, context) {
+  const payload = await response.json();
+  if (kind === "image") return renderImages(payload, context);
+  if (kind === "video") return followVideo(payload, context);
+  return renderDirectFetch(context);
+}
+
+// Fetch an artifact and report progress from Content-Length. This is the whole
+// mechanism: no side channel, no framing. A body read incrementally and a
+// length header are enough.
+async function fetchArtifact(url, key, { onProgress, range, signal } = {}) {
+  const headers = { authorization: `Bearer ${key}` };
+  if (range) headers.range = range;
+
+  const response = await fetch(url, { headers, signal });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+  }
+
+  const total = Number(response.headers.get("content-length")) || 0;
+  const reader = response.body.getReader();
+  const parts = [];
+  let received = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    received += value.length;
+    if (onProgress) onProgress(received, total);
+  }
+
+  return {
+    bytes: new Blob(parts),
+    received,
+    total,
+    status: response.status,
+    contentRange: response.headers.get("content-range"),
+    mime: response.headers.get("content-type") || "application/octet-stream",
+  };
+}
+
+function trackTransfer(label) {
+  showPhase(media.transfer);
+  return (received, total) => {
+    media.transferBar.value = total ? (received / total) * 100 : 0;
+    media.transferBar.max = 100;
+    media.transferDetail.textContent = total
+      ? `${label}${kb(received)} of ${kb(total)}`
+      : `${label}${kb(received)}`;
+  };
+}
+
+function preview(blob, mime, caption) {
+  const url = URL.createObjectURL(blob);
+  const figure = document.createElement("figure");
+  const node = document.createElement(mime.startsWith("video/") ? "video" : "img");
+  node.src = url;
+  if (mime.startsWith("video/")) {
+    node.controls = true;
+  } else {
+    node.alt = caption;
+  }
+  const label = document.createElement("figcaption");
+  label.textContent = caption;
+  figure.append(node, label);
+  media.preview.hidden = false;
+  media.preview.append(figure);
+}
+
+async function renderImages(payload, { base, key, started }) {
+  const refs = payload.artifacts || [];
+  write("ok", `generated ${refs.length} image(s), downloading…`, pretty(JSON.stringify(payload)));
+
+  for (const [index, ref] of refs.entries()) {
+    const label = refs.length > 1 ? `image ${index + 1}/${refs.length}: ` : "";
+    const result = await fetchArtifact(base + ref.url_path, key, {
+      onProgress: trackTransfer(label),
+    });
+    preview(result.bytes, result.mime, `${ref.artifact_id.slice(0, 8)}… ${kb(result.received)}`);
+  }
+
+  const ms = Math.round(performance.now() - started);
+  write(
+    "ok",
+    `${refs.length} image(s) generated and downloaded in ${ms} ms`,
+    pretty(JSON.stringify(payload))
+  );
+}
+
+// Follow a job's published progress, then download what it produced. The
+// estimated flag decides how the bar is drawn: a figure derived from elapsed
+// time must not look like one derived from bytes.
+async function followVideo(job, { base, key, started }) {
+  showPhase(media.generate);
+  media.generateDetail.textContent = "queued";
+  write("muted", `job ${job.job_id} queued…`, pretty(JSON.stringify(job)));
+
+  const events = await fetch(`${base}/v1/videos/${job.job_id}/events`, {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  const reader = events.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let final = null;
+  let failure = null;
+
+  outer: for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() || "";
+
+    for (const block of blocks) {
+      let event = "";
+      let data = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        else if (line.startsWith("data: ")) data = line.slice(6);
+      }
+      if (!event) continue;
+      const payload = data ? JSON.parse(data) : {};
+
+      if (event === "progress") {
+        media.generateBar.value = payload.percent || 0;
+        media.generate.classList.toggle("estimated", payload.estimated === true);
+        media.generateDetail.textContent = `${payload.status} ${Math.round(payload.percent || 0)}%`;
+      } else if (event === "done") {
+        final = payload;
+        break outer;
+      } else if (event === "error") {
+        failure = payload.error || "generation failed";
+        break outer;
+      }
+    }
+  }
+
+  if (failure) {
+    write("err", `job ${job.job_id} failed`, failure);
+    return;
+  }
+
+  media.generateBar.value = 100;
+  media.generate.classList.remove("estimated");
+  media.generateDetail.textContent = "complete 100%";
+
+  const status = await (
+    await fetch(`${base}/v1/videos/${job.job_id}`, {
+      headers: { authorization: `Bearer ${key}` },
+    })
+  ).json();
+
+  for (const ref of status.artifacts || []) {
+    const result = await fetchArtifact(base + ref.url_path, key, {
+      onProgress: trackTransfer(""),
+    });
+    preview(result.bytes, result.mime, `${ref.artifact_id.slice(0, 8)}… ${kb(result.received)}`);
+  }
+
+  const ms = Math.round(performance.now() - started);
+  write("ok", `video ready and downloaded in ${ms} ms`, pretty(JSON.stringify(status)));
+}
+
+// Fetch one artifact by id, optionally proving that a dropped transfer resumes
+// rather than starting over.
+async function renderDirectFetch({ base, key, values, started }) {
+  const url = `${base}/v1/artifacts/${encodeURIComponent(values.artifact_id)}/content`;
+
+  if (!values.simulate_a_dropped_transfer) {
+    const result = await fetchArtifact(url, key, { onProgress: trackTransfer("") });
+    preview(result.bytes, result.mime, `${kb(result.received)}`);
+    const ms = Math.round(performance.now() - started);
+    write("ok", `downloaded ${kb(result.received)} in ${ms} ms`, `HTTP ${result.status}`);
+    return;
+  }
+
+  // Abort partway, then ask for the rest. The two halves are rejoined and the
+  // total compared, because a resumed transfer that quietly loses bytes would
+  // look like a success.
+  const controller = new AbortController();
+  const track = trackTransfer("first attempt: ");
+  let head = null;
+  try {
+    await fetchArtifact(url, key, {
+      signal: controller.signal,
+      onProgress: (received, total) => {
+        track(received, total);
+        head = { received, total };
+        if (total && received >= total / 2) controller.abort();
+      },
+    });
+  } catch (error) {
+    if (error.name !== "AbortError") throw error;
+  }
+
+  if (!head) {
+    write("warn", "nothing to resume", "The transfer finished before it could be interrupted.");
+    return;
+  }
+
+  const tail = await fetchArtifact(url, key, {
+    range: `bytes=${head.received}-`,
+    onProgress: trackTransfer("resumed: "),
+  });
+
+  const rejoined = head.received + tail.received;
+  const ok = rejoined === head.total;
+  const ms = Math.round(performance.now() - started);
+  write(
+    ok ? "ok" : "err",
+    ok
+      ? `resumed transfer reassembled exactly (${kb(rejoined)} in ${ms} ms)`
+      : `resumed transfer lost bytes: ${rejoined} of ${head.total}`,
+    [
+      `aborted after   ${head.received} of ${head.total} bytes`,
+      `resume request  Range: bytes=${head.received}-`,
+      `resume response HTTP ${tail.status}  ${tail.contentRange || ""}`,
+      `rejoined        ${rejoined} bytes`,
+    ].join("\n")
+  );
+}

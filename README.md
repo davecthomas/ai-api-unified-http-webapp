@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 1.2.0
+# ai-api-unified-http-webapp 1.3.0
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -113,6 +113,9 @@ editable in the page. `make open` does the same and opens a browser.
 | `GET /v1/batches/{id}` | Batch status and counts |
 | `GET /v1/batches/{id}/results` | Per-request results, once ended |
 | `POST /v1/batches/{id}/cancel` | Request cancellation |
+| `POST /v1/images` | Generate images, then download each with a progress bar |
+| `POST /v1/videos` | Start a video job, follow its progress, then download |
+| `GET /v1/artifacts/{id}` | Download an artifact, optionally interrupted and resumed |
 | `GET /v1/models` | Model catalog with lifecycle and pricing |
 
 **Streaming renders as it arrives**, chunk by chunk with a running count.
@@ -126,6 +129,20 @@ stateless. Each `conversation_token` is stored as the content of an assistant
 message in the position that turn happened, which is the contract the service
 expects. Send once, then ask "What is my favorite color?" to watch context
 carry across turns. The token is opaque and this page never looks inside it.
+
+**Two progress bars, because progress means two different things.** While a
+video generates there are no bytes, so nothing can be measured: the service
+publishes a figure and says whether it measured it. The generating bar is drawn
+hatched and labelled *estimated* when that figure came from elapsed time rather
+than from the provider, so a guess never looks like a measurement. While an
+artifact downloads there is nothing to publish — `Content-Length` and the bytes
+read are the whole answer — so the page counts it itself.
+
+**Tick "simulate a dropped transfer"** on the artifact tab to see the point of
+`Range`. The download is aborted at the halfway mark, resumed with
+`Range: bytes=N-`, and the two halves are rejoined and compared. Generation is
+the expensive half and is already paid for by then, so a failed transfer has to
+be a re-download rather than a re-generation.
 
 **Batches take four tabs, because they are four calls.** Submit returns a
 `batch_id`; paste it into the status, results, and cancel tabs. The engine

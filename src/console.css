@@ -190,3 +190,56 @@ textarea {
 @media (prefers-color-scheme: dark) {
   .warn { color: #fbbf24; }
 }
+
+/* --- Generated media -------------------------------------------------------
+   Two bars because there are two phases and they are measured differently.
+   Generation is a figure the service publishes; transfer is one this page
+   counts from Content-Length. The estimated modifier exists so a published
+   guess never looks like a measurement. */
+
+.phase {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.phase-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.phase-label small {
+  color: var(--pico-muted-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.phase progress {
+  margin: 0;
+  height: 0.5rem;
+}
+
+/* An estimated figure is drawn hatched, so a bar derived from elapsed time is
+   never mistaken for one derived from bytes. */
+.phase.estimated progress {
+  opacity: 0.65;
+}
+
+.phase.estimated .phase-label small::after {
+  content: " (estimated)";
+}
+
+#preview {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+#preview img,
+#preview video {
+  max-width: min(100%, 320px);
+  height: auto;
+  border-radius: var(--pico-border-radius);
+  border: 1px solid var(--pico-muted-border-color);
+}
