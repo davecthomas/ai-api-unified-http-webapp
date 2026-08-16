@@ -21,7 +21,7 @@
 //     contract the service expects.
 
 // Keep in sync with the README title.
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 
 const PARAMS = new URLSearchParams(location.search);
 
@@ -85,7 +85,25 @@ const ENDPOINTS = [
       { name: "max_response_tokens", type: "number", value: "", optional: true },
       { name: "request_timeout_seconds", type: "number", value: "", optional: true },
       { name: "stream", type: "checkbox", value: false },
+      {
+        name: "attach_image",
+        type: "file",
+        accept: "image/*",
+        optional: true,
+        hint: "sent base64; counts against the 1 MiB body limit",
+      },
+      {
+        name: "attach_artifact_id",
+        type: "text",
+        value: "",
+        optional: true,
+        hint: "an id from the images tab — no body weight, no re-upload",
+      },
     ],
+    note:
+      "Attachments work on the streaming path too. Generate an image on the " +
+      "images tab, paste its artifact_id here, and ask about it — the bytes " +
+      "never leave the server.",
     note:
       "With stream checked the response is SSE and renders as it arrives. " +
       "max_response_tokens and request_timeout_seconds are rejected with 400 " +
@@ -331,6 +349,48 @@ const ENDPOINTS = [
       "failed transfer must not repeat it.",
   },
   {
+    id: "voices",
+    label: "GET /v1/voices",
+    method: "GET",
+    path: (values) =>
+      "/v1/voices" +
+      (values.locale ? `?locale=${encodeURIComponent(values.locale)}` : ""),
+    fields: [
+      {
+        name: "locale",
+        type: "text",
+        value: "",
+        optional: true,
+        pathOnly: true,
+        hint: "e.g. en-US — an engine can publish thousands of voices",
+      },
+    ],
+    note:
+      "Read capabilities before building a speech request: engines disagree " +
+      "on streaming, emotion control, and SSML, and the ones that lack a " +
+      "feature refuse it rather than ignoring it.",
+  },
+  {
+    id: "speech",
+    label: "POST /v1/speech",
+    method: "POST",
+    path: () => "/v1/speech",
+    media: "speech",
+    fields: [
+      {
+        name: "text",
+        type: "textarea",
+        value: "The quick brown fox jumps over the lazy dog.",
+      },
+      { name: "voice_id", type: "text", value: "", optional: true, hint: "from the voices tab" },
+      { name: "audio_format", type: "text", value: "mp3_24000", optional: true },
+      { name: "speaking_rate", type: "number", value: "1.0", optional: true },
+    ],
+    note:
+      "The clip is stored like a generated image and fetched with the same " +
+      "progress bar, then plays inline.",
+  },
+  {
     id: "models",
     label: "GET /v1/models",
     method: "GET",
@@ -410,7 +470,28 @@ function renderForm(options = {}) {
     label.appendChild(title);
 
     let input;
-    if (field.type === "select") {
+    if (field.type === "file") {
+      input = document.createElement("input");
+      input.type = "file";
+      input.accept = field.accept || "image/*";
+      // The chosen file is read immediately and held as base64 on the field,
+      // because readValues is synchronous and a FileReader is not.
+      input.addEventListener("change", () => {
+        const chosen = input.files && input.files[0];
+        if (!chosen) {
+          field._data = null;
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          field._data = {
+            mime_type: chosen.type || "application/octet-stream",
+            data: String(reader.result).split(",", 2)[1],
+          };
+        };
+        reader.readAsDataURL(chosen);
+      });
+    } else if (field.type === "select") {
       input = document.createElement("select");
       for (const option of field.options) {
         const element = document.createElement("option");
@@ -474,7 +555,9 @@ function readValues() {
   for (const field of active.fields) {
     const input = document.getElementById(fieldId(field.name));
     if (!input) continue;
-    if (field.type === "checkbox") {
+    if (field.type === "file") {
+      values[field.name] = field._data || null;
+    } else if (field.type === "checkbox") {
       values[field.name] = input.checked;
     } else if (field.type === "lines") {
       values[field.name] = input.value
@@ -508,6 +591,15 @@ function buildBody(values) {
     };
   }
 
+  // The two attachment inputs collapse into the service's attachments list.
+  const attachments = [];
+  if (values.attach_image) attachments.push(values.attach_image);
+  if (values.attach_artifact_id) {
+    attachments.push({ artifact_id: values.attach_artifact_id });
+  }
+  delete values.attach_image;
+  delete values.attach_artifact_id;
+
   const jsonFields = new Set(
     active.fields.filter((f) => f.type === "json").map((f) => f.name),
   );
@@ -523,6 +615,7 @@ function buildBody(values) {
     if (pathOnly.has(key)) continue;
     body[key] = jsonFields.has(key) ? JSON.parse(value) : value;
   }
+  if (attachments.length) body.attachments = attachments;
   return body;
 }
 
@@ -540,6 +633,29 @@ function write(kind, heading, body) {
   els.status.className = kind;
   els.status.textContent = heading;
   els.out.textContent = body;
+}
+
+// One glance at what a call cost, without digging in the JSON. Cache writes
+// are called out because they are the counterintuitive part: writing to a
+// cache bills above the input rate, and a caller warming a large cache pays
+// mostly for that.
+function costSummary(text) {
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return "";
+  }
+  const parts = [];
+  if (body.usd_cost) parts.push(`$${body.usd_cost}`);
+  const usage = body.usage;
+  if (usage) {
+    const writes = (usage.cache_write_5m_tokens || 0) + (usage.cache_write_1h_tokens || 0);
+    if (usage.total_tokens) parts.push(`${usage.total_tokens} tokens`);
+    if (writes) parts.push(`${writes} cache-write`);
+    if (usage.cached_input_tokens) parts.push(`${usage.cached_input_tokens} cached`);
+  }
+  return parts.length ? ` — ${parts.join(", ")}` : "";
 }
 
 function pretty(text) {
@@ -612,7 +728,7 @@ async function run(button) {
     const ms = Math.round(performance.now() - started);
     write(
       cssClass(response.status),
-      `${active.method} ${path} → HTTP ${response.status} (${ms} ms)`,
+      `${active.method} ${path} → HTTP ${response.status} (${ms} ms)${costSummary(text)}`,
       pretty(text) + explain(response.status, text)
     );
     if (active.id === "conversation" && response.ok) {
@@ -738,7 +854,31 @@ async function renderMedia(kind, response, context) {
   const payload = await response.json();
   if (kind === "image") return renderImages(payload, context);
   if (kind === "video") return followVideo(payload, context);
+  if (kind === "speech") return renderSpeech(payload, context);
   return renderDirectFetch(context);
+}
+
+async function renderSpeech(payload, { base, key, started }) {
+  const ref = payload.artifact;
+  write("ok", "synthesized, downloading…", pretty(JSON.stringify(payload)));
+  const result = await fetchArtifact(base + ref.url_path, key, {
+    onProgress: trackTransfer(""),
+  });
+  const url = URL.createObjectURL(result.bytes);
+  const audio = document.createElement("audio");
+  audio.controls = true;
+  audio.src = url;
+  const caption = document.createElement("figcaption");
+  const seconds = payload.duration_seconds;
+  caption.textContent =
+    `${payload.voice_id || "default voice"} · ${kb(result.received)}` +
+    (seconds ? ` · ${seconds.toFixed(1)}s` : "");
+  const figure = document.createElement("figure");
+  figure.append(audio, caption);
+  media.preview.hidden = false;
+  media.preview.append(figure);
+  const ms = Math.round(performance.now() - started);
+  write("ok", `speech ready in ${ms} ms`, pretty(JSON.stringify(payload)));
 }
 
 // Fetch an artifact and report progress from Content-Length. This is the whole
