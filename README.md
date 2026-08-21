@@ -1,4 +1,4 @@
-# ai-api-unified-http-webapp 1.3.0
+# ai-api-unified-http-webapp 1.4.0
 
 Browser console for
 [ai-api-unified-http](https://github.com/davecthomas/ai-api-unified-http). One
@@ -116,6 +116,8 @@ editable in the page. `make open` does the same and opens a browser.
 | `POST /v1/images` | Generate images, then download each with a progress bar |
 | `POST /v1/videos` | Start a video job, follow its progress, then download |
 | `GET /v1/artifacts/{id}` | Download an artifact, optionally interrupted and resumed |
+| `GET /v1/voices` | Voice catalogue with engine capabilities |
+| `POST /v1/speech` | Synthesize speech; plays inline with a download bar |
 | `GET /v1/models` | Model catalog with lifecycle and pricing |
 
 **Streaming renders as it arrives**, chunk by chunk with a running count.
@@ -129,6 +131,18 @@ stateless. Each `conversation_token` is stored as the content of an assistant
 message in the position that turn happened, which is the contract the service
 expects. Send once, then ask "What is my favorite color?" to watch context
 carry across turns. The token is opaque and this page never looks inside it.
+
+**Completions can carry an image.** Pick a local file, which is sent base64
+and counts against the service's 1 MiB body limit — or paste an `artifact_id`
+from the images tab, which costs the body nothing because the bytes never
+leave the server. Generate an image, paste its id, and ask about it: that
+round trip is the demo.
+
+**The status line prices each call.** `$0.000205, 173 tokens` appears beside
+the HTTP status when the response carries cost. Cache writes are named
+separately when present, because they are the counterintuitive part: writing
+to a prompt cache bills above the input rate, and a caller warming a large
+cache pays mostly for that.
 
 **Two progress bars, because progress means two different things.** While a
 video generates there are no bytes, so nothing can be measured: the service
